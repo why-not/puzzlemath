@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Puzzle Math</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        button, input {
+            font-size: 16px;
+        }
+        .equation {
+            font-size: 30px;
+            font-weight: bold;
+        }
+        .reward {
+            font-size: 30px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .color-box {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixel Puzzle Math</h1>
+
+    <div>
+        <label for="x">X:</label>
+        <input type="text" id="x" name="x">
+        <label for="y">Y:</label>
+        <input type="text" id="y" name="y">
+        <button onclick="startChallenge()">Challenge</button>
+    </div>
+
+    <div id="challenge-container"></div>
+    <div id="reward-container"></div>
+
+    <script>
+        async function startChallenge() {
+            const x = document.getElementById("x").value;
+            const y = document.getElementById("y").value;
+
+            const response = await fetch("/challenge", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "coordinates": `(${x}, ${y})`
+                })
+            });
+
+            const data = await response.json();
+            const equation = data.equation;
+            const missingIndex = data.missing_index;
+
+            const challengeContainer = document.getElementById("challenge-container");
+            challengeContainer.innerHTML = `
+                <div class="equation">
+                    ${equation.slice(0, missingIndex * 6)}
+                    <input type="text" id="missing-number" style="width: 50px;">
+                    ${equation.slice(missingIndex * 6 + 1)}
+                </div>
+                <button onclick="submitAnswer(${missingIndex})">Submit</button>
+            `;
+        }
+
+        async function submitAnswer(missingIndex) {
+            const userInput = document.getElementById("missing-number").value;
+            const equation = document.querySelector(".equation").textContent;
+
+            const response = await fetch("/submit", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "user_input": userInput,
+                    "equation": equation,
+                    "missing_index": missingIndex
+                })
+            });
+
+            const data = await response.json();
+            const rewardContainer = document.getElementById("reward-container");
+            if (data.message.startsWith("Congratulations")) {
+                rewardContainer.innerHTML = data.reward.map(reward => `
+                    <div class="reward">
+                        ${reward.coordinates}
+                        <span class="color-box" style="background-color: ${reward.color_name};"></span>
+                    </div>
+                `).join("");
+            } else {
+                rewardContainer.innerHTML = `<p>${data.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
